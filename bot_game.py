@@ -5,23 +5,23 @@ import os
 intents = discord.Intents.default()
 intents.message_content = True
 
-class MyBot(commands.Bot):
+class GameBot(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix=["!", "！"], intents=intents)
 
     async def setup_hook(self):
-        # 自動載入所有 commands/*.py 模組
-        for filename in os.listdir("./commands"):
+        # 自動載入 commands_game 資料夾底下的所有模組
+        for filename in os.listdir("./commands_game"):
             if filename.endswith(".py") and filename != "__init__.py":
-                module_name = f"commands.{filename[:-3]}"
+                module_name = f"commands_game.{filename[:-3]}"
                 try:
                     await self.load_extension(module_name)
-                    print(f"✅ 已載入模組：{module_name}")
+                    print(f"🎮 已載入遊戲模組：{module_name}")
                 except Exception as e:
                     print(f"❌ 載入 {module_name} 失敗：{e}")
 
-bot = MyBot()
+bot_game = GameBot()
 
-@bot.event
+@bot_game.event
 async def on_ready():
-    print(f"✅ Bot 上線啦！帳號：{bot.user}")
+    print(f"🎮 朋友伺服器 Bot 上線啦！帳號：{bot_game.user}")
