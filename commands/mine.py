@@ -456,7 +456,7 @@ class MiningGame(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(aliases=["礦場", "礦坑"])
+    @commands.command(aliases=["礦場", "礦坑", "礦"])
     async def mine(self, ctx):
         data = load_json(DATA_FILE)
         if str(ctx.author.id) not in data:

@@ -67,14 +67,14 @@ class Alien(commands.Cog):
                 for r, c in solution:
                     col_letter = chr(c + 65)
                     row_num = r + 1
-                    result_texts.append(f"**{col_letter}{row_num}**")
+                    result_texts.append(f"{col_letter}{row_num}")
 
                 # 把陣列組合成分號隔開的字串
                 final_answer = "、".join(result_texts)
 
                 # 編輯原本那則「處理中」的訊息，公布答案！
                 await processing_msg.edit(
-                    content=f"✅ **計算成功！** 狙擊任務座標如下：\n\n👽 外星人的位置分別在： {final_answer}"
+                    content=f"座標如下\n {final_answer}"
                 )
             else:
                 await processing_msg.edit(

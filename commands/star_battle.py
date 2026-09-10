@@ -352,7 +352,7 @@ class StarBattle(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command()
+    @commands.command(aliases=["star", "星"])
     async def 星之戰(self, ctx):
         n = 7
         rules = (

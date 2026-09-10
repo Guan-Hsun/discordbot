@@ -72,10 +72,10 @@ class Economy(commands.Cog):
             f"{ctx.author.mention} 獲得簽到獎勵 給你 50 <:emoji_1:1127882888508088393>"
         )
 
-        if random.random() < 0.3:
-            data[user_id]["傑尼幣"] += 20
+        if random.random() < 0.1:
+            data[user_id]["傑尼幣"] += 50
             data[user_id]["經驗值"] += 1
-            reply_msg += "\n✨ **你今天是幸運寶貝！額外再給你 20** <:emoji_1:1127882888508088393>"
+            reply_msg += "\n✨ **你今天是幸運寶貝！額外再給你 50** <:emoji_1:1127882888508088393>"
 
         save_json(DATA_FILE, data)
         await ctx.reply(reply_msg)
