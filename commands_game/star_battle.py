@@ -330,12 +330,17 @@ class StarBattleEntry(discord.ui.View):
         if user_id not in data or data[user_id].get("傑尼幣", 0) < 30:
             return await interaction.response.send_message("⚠️ **餘額不足！** 需要 30 傑尼幣！", ephemeral=True)
 
-        # 🌟 攔截 3 秒超時問題
-        await interaction.response.defer()
+        # 🌟 防連點優化：瞬間鎖死按鈕並更新畫面 (取代原本的 defer)
+        button.disabled = True
+        button.label = "⏳ 生成地圖中，請稍候..."
+        button.style = discord.ButtonStyle.secondary
+        await interaction.response.edit_message(view=self)
 
+        # 扣款
         data[user_id]["傑尼幣"] -= 30
         save_json(DATA_FILE, data)
 
+        # 啟動遊戲 (此時玩家已經無法再點擊按鈕，可以安心讓機器人慢慢算)
         game_view = StarBattleGame(self.ctx)
         img_buf = create_board_image(game_view.regions, game_view.board_state)
         file = discord.File(img_buf, filename="board.png")
@@ -344,10 +349,11 @@ class StarBattleEntry(discord.ui.View):
         embed.description = "**錯誤次數：** 0 / 3\n**已找到星星：** 0 / 7"
         embed.set_image(url="attachment://board.png")
 
+        # 運算完成後，再把畫面替換成正式的遊戲面板
         await interaction.message.edit(embed=embed, attachments=[file], view=game_view)
         game_view.message = interaction.message
         self.stop()
-
+        
 class StarBattle(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
