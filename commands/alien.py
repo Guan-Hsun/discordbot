@@ -1,3 +1,4 @@
+import discord
 from discord.ext import commands
 import io
 from PIL import Image
@@ -8,17 +9,20 @@ class Alien(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command()
-    async def alien(self, ctx):
-        if not ctx.message.attachments:
+    @commands.hybrid_command(name="alien", description="解析圖片並計算外星人位置 (請上傳九宮格圖片)")
+    async def alien(self, ctx: commands.Context, image: discord.Attachment = None):
+        # 兼容 Slash Command 的參數，以及傳統前綴指令的附加檔案
+        attachment = image or (ctx.message.attachments[0] if ctx.message.attachments else None)
+
+        if not attachment:
             await ctx.reply(
-                "⚠️ 沒有偵測到圖片！請在「上傳圖片的同時」，在附註欄位輸入 `!alien`。"
+                "⚠️ 沒有偵測到圖片！請在「上傳圖片的同時」輸入指令，或在斜線指令中附上圖片。",
+                ephemeral=True
             )
             return
 
-        attachment = ctx.message.attachments[0]
         if not attachment.filename.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
-            await ctx.reply("⚠️ 這似乎不是支援的圖片格式喔！")
+            await ctx.reply("⚠️ 這似乎不是支援的圖片格式喔！", ephemeral=True)
             return
 
         # 先發送一則處理中的訊息，稍後算出答案會直接編輯這則訊息
@@ -49,11 +53,6 @@ class Alien(commands.Cog):
 
                 grid_array.append(row_data)
 
-            # 在終端機印出 9x9 陣列，方便你除錯
-            # print("\n✅ 圖片解析完成，產生的 9x9 陣列如下：")
-            # for r in grid_array:
-            #     print(r)
-
             # ==========================================
             # 🚀 進入解答邏輯
             # ==========================================
@@ -74,7 +73,7 @@ class Alien(commands.Cog):
 
                 # 編輯原本那則「處理中」的訊息，公布答案！
                 await processing_msg.edit(
-                    content=f"座標如下\n {final_answer}"
+                    content=f"✅ **座標計算完成**\n{final_answer}"
                 )
             else:
                 await processing_msg.edit(
@@ -89,45 +88,36 @@ class Alien(commands.Cog):
         alien_positions = []
 
         def backtrack(row, cols_used, cats_used):
-            # 如果已經成功填滿 9 個 row，代表找到答案了！
             if row == 9:
                 return True
 
             for col in range(9):
                 cat = grid[row][col]
 
-                # 規則 2 & 3：檢查這個直排 (Column) 或是這個顏色 (Category) 是不是已經有外星人了
                 if col in cols_used or cat in cats_used:
                     continue
 
-                # 規則 4：檢查周圍 8 格有沒有其他外星人
                 conflict = False
                 for r, c in alien_positions:
-                    # 只要兩點的 X 距離與 Y 距離都在 1 以內，就是相鄰或對角線相連
                     if abs(row - r) <= 1 and abs(col - c) <= 1:
                         conflict = True
                         break
                 if conflict:
                     continue
 
-                # 所有條件都符合，把外星人暫時放在這裡
                 alien_positions.append((row, col))
                 cols_used.add(col)
                 cats_used.add(cat)
 
-                # 遞迴：繼續往下一列 (row + 1) 尋找
                 if backtrack(row + 1, cols_used, cats_used):
                     return True
 
-                # 如果這條路不通（底下的 row 找不到合適的位子），就把這個外星人拔掉 (回溯)，試下一個 column
                 alien_positions.pop()
                 cols_used.remove(col)
                 cats_used.remove(cat)
 
-            # 這一個 row 所有的 column 都試過了還是不行，回傳 False 讓上一層去換位子
             return False
 
-        # 從第 0 列開始找，傳入空的 set 來記錄用過的 column 和顏色
         if backtrack(0, set(), set()):
             return alien_positions
         else:

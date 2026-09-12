@@ -142,11 +142,11 @@ class RockPaperScissors(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(aliases=["rps", "猜拳"])
-    async def play_rps(self, ctx, member: discord.Member):
+    @commands.hybrid_command(name="rps", aliases=["猜拳", "play_rps"], description="花費 10 傑尼幣與玩家或機器人進行猜拳對決！")
+    async def rps(self, ctx: commands.Context, member: discord.Member):
         # 1. 不能跟自己玩
         if member == ctx.author:
-            return await ctx.reply("⚠️ 你不能跟自己猜拳啦！太邊緣了吧！")
+            return await ctx.reply("⚠️ 你不能跟自己猜拳啦！太邊緣了吧！", ephemeral=True)
 
         data = load_json(DATA_FILE)
         user_id = str(ctx.author.id)
@@ -154,18 +154,18 @@ class RockPaperScissors(commands.Cog):
 
         # 2. 檢查發起人
         if user_id not in data:
-            return await ctx.reply("⚠️ **你還沒註冊！** 請先輸入 `!面板` 建立獵人資料！")
+            return await ctx.reply("⚠️ **你還沒註冊！** 請先使用 `/profile` 建立獵人資料！", ephemeral=True)
         if data[user_id].get("傑尼幣", 0) < 10:
-            return await ctx.reply("⚠️ **餘額不足！** 猜拳賭注需要 10 傑尼幣！")
+            return await ctx.reply("⚠️ **餘額不足！** 猜拳賭注需要 10 傑尼幣！", ephemeral=True)
 
         is_bot = (member == self.bot.user)
 
         # 3. 檢查對手 (如果是玩家的話)
         if not is_bot:
             if target_id not in data:
-                return await ctx.reply(f"⚠️ **{member.display_name}** 還沒註冊，不能跟他玩！")
+                return await ctx.reply(f"⚠️ **{member.display_name}** 還沒註冊，不能跟他玩！", ephemeral=True)
             if data[target_id].get("傑尼幣", 0) < 10:
-                return await ctx.reply(f"⚠️ **{member.display_name}** 窮到連 10 傑尼幣都沒有，放過他吧！")
+                return await ctx.reply(f"⚠️ **{member.display_name}** 窮到連 10 傑尼幣都沒有，放過他吧！", ephemeral=True)
 
         # 4. 發送對決面板
         view = RPSView(ctx, member, is_bot)
@@ -182,10 +182,10 @@ class RockPaperScissors(commands.Cog):
         mention_msg = member.mention if not is_bot else None
         view.message = await ctx.reply(content=mention_msg, embed=embed, view=view)
 
-    @play_rps.error
-    async def play_rps_error(self, ctx, error):
+    @rps.error
+    async def rps_error(self, ctx: commands.Context, error):
         if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.reply("⚠️ **格式錯誤！**\n請標記你要挑戰的對象，例如：`!猜拳 @阿勳` 或 `!猜拳 @機器人`")
+            await ctx.reply("⚠️ **格式錯誤！**\n請標記你要挑戰的對象，例如：`/rps member:@阿勳` 或 `!猜拳 @機器人`", ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(RockPaperScissors(bot))

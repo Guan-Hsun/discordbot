@@ -102,16 +102,18 @@ def calculate_afk_mining(user_id):
 
     current_time = time.time()
     time_passed = current_time - player["last_mine_time"]
-    cycles = int(time_passed // MINE_CYCLE_SECONDS)
 
-    if cycles > 0:
+    # 🌟 新邏輯：每顆礦石的產出間隔 (秒)
+    seconds_per_ore = MINE_CYCLE_SECONDS / player["miners"]
+    ores_to_add = int(time_passed // seconds_per_ore)
+
+    if ores_to_add > 0:
         current_ores = sum(player["ores"].values())
         max_cap = WH_LEVELS[player["wh_lv"]]["cap"]
         available_space = max_cap - current_ores
 
         if available_space > 0:
-            mined_amount = cycles * player["miners"]
-            actual_mined = min(mined_amount, available_space)
+            actual_mined = min(ores_to_add, available_space)
 
             probs = MINE_LEVELS[player["mine_lv"]]["probs"]
             weights = [p/100.0 for p in probs]
@@ -122,7 +124,8 @@ def calculate_afk_mining(user_id):
 
             player["total_mined"] += actual_mined
 
-        player["last_mine_time"] += cycles * MINE_CYCLE_SECONDS
+        # 更新時間，推進實際消耗的時間
+        player["last_mine_time"] += ores_to_add * seconds_per_ore
         save_json(MINE_FILE, m_data)
 
     return player
@@ -138,7 +141,7 @@ class MineControlView(discord.ui.View):
         self.user_id = str(ctx.author.id)
         self.page = page
         self.message = None
-        self.status_msg = "" # 🌟 新增：用來記錄要顯示在 Embed 上的通知訊息
+        self.status_msg = "" 
 
         self.setup_buttons()
 
@@ -216,7 +219,6 @@ class MineControlView(discord.ui.View):
             self.add_item(btn_home)
 
     def generate_embed(self):
-        # 🌟 每次生成卡片時，強制更新市場價格與掛機資料，徹底解決跨整點卡價 Bug
         self.market = update_market_if_needed()
         self.p_data = calculate_afk_mining(self.user_id)
 
@@ -234,8 +236,13 @@ class MineControlView(discord.ui.View):
             cart_name = CART_LEVELS[self.p_data['cart_lv']]['name']
             tax_rate = CART_LEVELS[self.p_data['cart_lv']]['tax'] * 100
 
+            # 動態顯示產能速率 (將 10 / 礦工人數 取到小數點第一位)
+            mins_per_ore = round(10 / self.p_data['miners'], 1)
+            # 如果是 .0 結尾就轉成整數顯示
+            mins_per_ore_str = f"{int(mins_per_ore)}" if mins_per_ore.is_integer() else f"{mins_per_ore}"
+
             desc = (
-                f"👷 **礦工陣容**：{self.p_data['miners']} 人 (產能: {self.p_data['miners']} 顆 / 10分鐘)\n"
+                f"👷 **礦工陣容**：{self.p_data['miners']} 人 (產能: 1 顆 / {mins_per_ore_str} 分鐘)\n"
                 f"🕳️ **目前礦坑**：{mine_name} (Lv.{self.p_data['mine_lv']})\n"
                 f"📦 **倉庫狀態**：[{bar}] {current_ores} / {max_cap}\n"
                 f"🚂 **運輸稅率**：{int(tax_rate)}% ({cart_name})\n\n"
@@ -318,10 +325,9 @@ class MineControlView(discord.ui.View):
             desc += f"4️⃣ **升級礦車** (Lv.{cart_lv})\n➔ 費用: {cost_cart} | {status_cart}\n"
             embed.description = desc
 
-        # 🌟 將系統通知區塊獨立顯示在 Embed 中
         if self.status_msg:
             embed.add_field(name="🔔 系統通知", value=self.status_msg, inline=False)
-            self.status_msg = "" # 顯示完畢後清空，避免卡在畫面上
+            self.status_msg = "" 
 
         return embed
 
@@ -348,15 +354,12 @@ class MineControlView(discord.ui.View):
         await self.update_message(interaction)
 
     async def sell_ores(self, interaction, target_ore):
-        # 防路人亂點 (唯一保留的 ephemeral)
         if interaction.user.id != self.ctx.author.id: 
             return await interaction.response.send_message("❌ 這不是你的礦場！", ephemeral=True)
 
-        # 🌟 強制刷新市場與自身資料
         self.market = update_market_if_needed()
         self.p_data = calculate_afk_mining(self.user_id)
 
-        # 防呆檢查庫存，改為使用系統通知顯示
         if target_ore == "all":
             current_ores = sum(self.p_data["ores"].values())
             if current_ores == 0:
@@ -367,7 +370,6 @@ class MineControlView(discord.ui.View):
                 self.status_msg = f"⚠️ 你的倉庫裡沒有 **{target_ore}** 可以賣！"
                 return await self.update_message(interaction)
 
-        # 結算金額
         total_value = 0
         if target_ore == "all":
             for ore in ORE_TYPES:
@@ -384,7 +386,7 @@ class MineControlView(discord.ui.View):
 
         c_data = load_json(DATA_FILE)
         if self.user_id not in c_data:
-            self.status_msg = "⚠️ 你還沒註冊獵人執照！(請輸入 !面板)"
+            self.status_msg = "⚠️ 你還沒註冊獵人執照！(請輸入 `/profile`)"
             return await self.update_message(interaction)
 
         c_data[self.user_id]["傑尼幣"] = c_data[self.user_id].get("傑尼幣", 0) + final_value
@@ -461,11 +463,11 @@ class MiningGame(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(aliases=["礦場", "礦坑", "礦"])
-    async def mine(self, ctx):
+    @commands.hybrid_command(name="mine", aliases=["礦場", "礦坑", "礦"], description="開啟地下礦場管理面板，掛機挖礦並升級你的設備")
+    async def mine(self, ctx: commands.Context):
         data = load_json(DATA_FILE)
         if str(ctx.author.id) not in data:
-            return await ctx.reply("⚠️ **你還沒註冊！** 請先輸入 `!面板` 建立你的獵人資料！")
+            return await ctx.reply("⚠️ **你還沒註冊！** 請先使用 `/profile` 建立你的獵人資料！", ephemeral=True)
 
         view = MineControlView(ctx, page="home")
         view.message = await ctx.reply(embed=view.generate_embed(), view=view)

@@ -1,12 +1,12 @@
-from discord.ext import commands
 import random
+from discord.ext import commands
 
 class Hello(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(aliases=['hi', '你好'])
-    async def hello(self, ctx):
+    @commands.hybrid_command(name="hello", aliases=['hi', '你好'], description="跟機器人打聲招呼！")
+    async def hello(self, ctx: commands.Context):
         responses = [
             "Hello World！我現在醒著！",
             "hi",
@@ -17,7 +17,6 @@ class Hello(commands.Cog):
 
         reply = random.choice(responses)
         await ctx.reply(reply)
-        # await ctx.send(reply)
 
 async def setup(bot):
     await bot.add_cog(Hello(bot))

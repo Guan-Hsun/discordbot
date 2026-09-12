@@ -17,13 +17,13 @@ ODDS = {
     "大": 2,       
     "小": 2,       
     "豹子": 25,    
-    "4或17": 51,   
-    "5或16": 19,   
-    "6或15": 15,   
-    "7或14": 13,   
-    "8或13": 9,    
-    "9或12": 7,    
-    "10或11": 7,   
+    "4或17": 32,   
+    "5或16": 16,   
+    "6或15": 10,   
+    "7或14": 7,   
+    "8或13": 6,    
+    "9或12": 5,    
+    "10或11": 4,   
 }
 
 # 🌟 改用 Discord 內建的超大型數字 Emoji，解決原版符號太小的問題
@@ -48,7 +48,7 @@ class SicBoButton(discord.ui.Button):
         data = load_json(DATA_FILE)
 
         if user_id not in data:
-            return await interaction.response.send_message("⚠️ 你還沒註冊獵人執照！(請輸入 !面板)", ephemeral=True)
+            return await interaction.response.send_message("⚠️ 你還沒註冊獵人執照！(請輸入 `/profile`)", ephemeral=True)
 
         # 🌟 檢查下注上限 (每人最多 10 注)
         user_data = view.bets.get(user_id, {"bets": {}})
@@ -145,10 +145,10 @@ class SicBoGame(commands.Cog):
         self.bot = bot
         self.game_active = False
 
-    @commands.command(aliases=["sb", "骰寶"])
-    async def sicbo(self, ctx):
+    @commands.hybrid_command(name="sicbo", aliases=["sb", "骰寶"], description="開放地下競技場骰寶下注，快來試試手氣！")
+    async def sicbo(self, ctx: commands.Context):
         if self.game_active:
-            return await ctx.reply("⚠️ 目前已經有一場骰寶正在進行中，請趕快去下注吧！")
+            return await ctx.reply("⚠️ 目前已經有一場骰寶正在進行中，請趕快去下注吧！", ephemeral=True)
 
         self.game_active = True
 

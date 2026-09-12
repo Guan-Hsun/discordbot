@@ -74,13 +74,13 @@ class KeywordReply(commands.Cog):
                 await message.reply(reply)
                 break 
 
-    @commands.command()
-    async def 新增關鍵字(self, ctx, keyword: str, *, response: str):
+    @commands.hybrid_command(name="addkeyword", aliases=["新增關鍵字"], description="花費 200 傑尼幣新增一個觸發關鍵字與隨機回覆")
+    async def addkeyword(self, ctx: commands.Context, keyword: str, *, response: str):
         data = load_json(DATA_FILE)
         user_id = str(ctx.author.id)
 
-        if user_id not in data or data[user_id].get("傑尼幣", 0) <= 200:
-            await ctx.reply("⚠️ **你根本沒有 200 傑尼幣！** 請先去多簽到賺錢再來吧！")
+        if user_id not in data or data[user_id].get("傑尼幣", 0) < 200:
+            await ctx.reply("⚠️ **你根本沒有 200 傑尼幣！** 請先去多簽到賺錢再來吧！", ephemeral=True)
             return
 
         view = ConfirmKeywordView(ctx, keyword, response)
@@ -89,13 +89,16 @@ class KeywordReply(commands.Cog):
             view=view
         )
 
-    @新增關鍵字.error
-    async def 新增關鍵字_error(self, ctx, error):
+    @addkeyword.error
+    async def addkeyword_error(self, ctx: commands.Context, error):
         if isinstance(error, commands.MissingRequiredArgument):
             await ctx.reply(
                 "⚠️ **格式錯誤或輸入不完整！**\n\n"
-                "💡 **正確用法**：`!新增關鍵字 <觸發字> <要回覆的話>`\n"
-                "📝 **範例**：`!新增關鍵字 阿勳 他是大帥哥`"
+                "💡 **正確用法**：\n"
+                "【斜線指令】`/addkeyword keyword:<觸發字> response:<要回覆的話>`\n"
+                "【傳統指令】`!新增關鍵字 <觸發字> <要回覆的話>`\n\n"
+                "📝 **範例**：`/addkeyword keyword:阿勳 response:他是大帥哥`",
+                ephemeral=True
             )
 
 async def setup(bot):

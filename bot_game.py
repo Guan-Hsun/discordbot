@@ -20,6 +20,12 @@ class GameBot(commands.Bot):
                 except Exception as e:
                     print(f"❌ 載入 {module_name} 失敗：{e}")
 
+        try:
+            synced = await self.tree.sync()
+            print(f"🎮 已全域同步 {len(synced)} 個斜線指令")
+        except Exception as e:
+            print(f"❌ 指令樹全域同步失敗：{e}")
+
 bot_game = GameBot()
 
 @bot_game.event

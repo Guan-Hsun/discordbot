@@ -170,22 +170,22 @@ class AB(commands.Cog):
         self.bot = bot
         self.active_players = set()
 
-    @commands.command(aliases=["猜數字", "1a2b"])
-    async def ab(self, ctx):
+    @commands.hybrid_command(name="ab", aliases=["猜數字", "1a2b"], description="花費 30 傑尼幣遊玩 1A2B 猜數字遊戲，猜中可贏取高額獎金！")
+    async def ab(self, ctx: commands.Context):
         user_id = str(ctx.author.id)
 
         if user_id in self.active_players:
-            await ctx.reply("⚠️ 你已經有一場遊戲正在進行中囉，請先猜完！")
+            await ctx.reply("⚠️ 你已經有一場遊戲正在進行中囉，請先猜完！", ephemeral=True)
             return
 
         data = load_json(DATA_FILE)
 
         if user_id not in data:
-            await ctx.reply("⚠️ **你還沒註冊！** 請先輸入 `!面板` 建立你的獵人資料！")
+            await ctx.reply("⚠️ **你還沒註冊！** 請先使用 `/profile` 或 `!面板` 建立你的獵人資料！", ephemeral=True)
             return
 
         if data[user_id].get("傑尼幣", 0) < 30:
-            await ctx.reply("⚠️ **餘額不足！** 1A2B 的入場費需要 30 傑尼幣，你太窮了><")
+            await ctx.reply("⚠️ **餘額不足！** 1A2B 的入場費需要 30 傑尼幣，你太窮了><", ephemeral=True)
             return
 
         # 扣錢、加進名單

@@ -10,45 +10,47 @@ from json_manager import load_json, save_json
 DATA_FILE = "data.json"
 
 # ==========================================
-# 🧠 星際之戰 7x7 核心引擎
+# 📊 遊戲數值設定 (Config)
 # ==========================================
-def get_valid_star_sets():
-    """找出 7x7 棋盤中，所有合法的星星配置 (每行每列1顆，且互不相鄰包含對角線)"""
+GAME_SIZE = 7  # 🌟 透過這個變數控制棋盤大小，目前完美支援最高 10x10
+
+# ==========================================
+# 🧠 星際之戰 核心引擎
+# ==========================================
+def get_valid_star_sets(size):
+    """找出棋盤中，所有合法的星星配置 (每行每列1顆，且互不相鄰包含對角線)"""
     sets = []
-    # 遍歷 0-6 排列
-    for p in itertools.permutations(range(7)):
+    for p in itertools.permutations(range(size)):
         valid = True
-        for r in range(6):
+        for r in range(size - 1):
             if abs(p[r] - p[r+1]) <= 1:
                 valid = False
                 break
         if valid:
-            sets.append([(r, p[r]) for r in range(7)])
+            sets.append([(r, p[r]) for r in range(size)])
     return sets
 
-def count_solutions(regions, valid_sets):
+def count_solutions(regions, valid_sets, size):
     """計算目前的區域劃分有幾種合法解答"""
     count = 0
     for s in valid_sets:
         region_counts = set(regions[r][c] for r, c in s)
-        if len(region_counts) == 7: # 7顆星星必須剛好在7個不同區域
+        if len(region_counts) == size: 
             count += 1
     return count
 
-def generate_puzzle():
-    """生成具有唯一解的 7x7 星際之戰謎題 (確保區域 >= 3格)"""
-    valid_sets = get_valid_star_sets()
+def generate_puzzle(size):
+    """生成具有唯一解的星際之戰謎題 (確保區域 >= 3格)"""
+    valid_sets = get_valid_star_sets(size)
 
     while True:
         stars = random.choice(valid_sets)
-        regions = [[-1]*7 for _ in range(7)]
+        regions = [[-1]*size for _ in range(size)]
 
-        # 指派 7 顆星星到 7 個區域
         for i, (r, c) in enumerate(stars):
             regions[r][c] = i
 
-        # Flood Fill 擴張
-        empty_cells = [(r, c) for r in range(7) for c in range(7) if regions[r][c] == -1]
+        empty_cells = [(r, c) for r in range(size) for c in range(size) if regions[r][c] == -1]
         random.shuffle(empty_cells)
 
         progress = True
@@ -59,7 +61,7 @@ def generate_puzzle():
                 neighbors = []
                 for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
                     nr, nc = r+dr, c+dc
-                    if 0 <= nr < 7 and 0 <= nc < 7 and regions[nr][nc] != -1:
+                    if 0 <= nr < size and 0 <= nc < size and regions[nr][nc] != -1:
                         neighbors.append(regions[nr][nc])
                 if neighbors:
                     regions[r][c] = random.choice(neighbors)
@@ -68,19 +70,16 @@ def generate_puzzle():
 
         if empty_cells: continue 
 
-        # 🌟 新增檢驗機制：計算每個區域的格子數量
-        region_sizes = [0] * 7
-        for r in range(7):
-            for c in range(7):
+        region_sizes = [0] * size
+        for r in range(size):
+            for c in range(size):
                 if regions[r][c] != -1:
                     region_sizes[regions[r][c]] += 1
 
-        # 🌟 如果有任何區域小於 3 格，這張地圖直接作廢，重新生成！
-        if any(size < 3 for size in region_sizes):
+        if any(sz < 3 for sz in region_sizes):
             continue
 
-        # 確保只有唯一解 (這在 7x7 的運算中會稍微花一點時間，但有 defer 扛得住)
-        if count_solutions(regions, valid_sets) == 1:
+        if count_solutions(regions, valid_sets, size) == 1:
             return regions, stars
 
 # ==========================================
@@ -101,18 +100,18 @@ def draw_cross(draw, cx, cy, size, color="red"):
     draw.line((cx-size, cy-size, cx+size, cy+size), fill=color, width=3)
     draw.line((cx-size, cy+size, cx+size, cy-size), fill=color, width=3)
 
-def create_board_image(regions, board_state, selected_r=None, selected_c=None):
+def create_board_image(regions, board_state, size, selected_r=None, selected_c=None):
     cell_size = 50
     margin = 30
-    width = 7 * cell_size + margin
-    height = 7 * cell_size + margin
+    width = size * cell_size + margin
+    height = size * cell_size + margin
 
     img = Image.new('RGB', (width, height), color='white')
     draw = ImageDraw.Draw(img)
     font = ImageFont.load_default()
 
-    cols = "ABCDEFG"
-    for i in range(7):
+    cols = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[:size]
+    for i in range(size):
         cx = margin + i * cell_size + cell_size // 2
         draw.text((cx - 4, 8), cols[i], fill="black", font=font)
         cy = margin + i * cell_size + cell_size // 2
@@ -123,8 +122,8 @@ def create_board_image(regions, board_state, selected_r=None, selected_c=None):
         sy = margin + selected_r * cell_size
         draw.rectangle([sx, sy, sx+cell_size, sy+cell_size], fill="#fff3cd")
 
-    for r in range(7):
-        for c in range(7):
+    for r in range(size):
+        for c in range(size):
             x = margin + c * cell_size
             y = margin + r * cell_size
             draw.rectangle([x, y, x+cell_size, y+cell_size], outline="lightgray", width=1)
@@ -136,17 +135,17 @@ def create_board_image(regions, board_state, selected_r=None, selected_c=None):
             elif mark == 'X':
                 draw_cross(draw, cx, cy, 12, "#e74c3c")
 
-    for r in range(7):
-        for c in range(7):
+    for r in range(size):
+        for c in range(size):
             x = margin + c * cell_size
             y = margin + r * cell_size
             if r == 0 or regions[r][c] != regions[r-1][c]:
                 draw.line([x, y, x+cell_size, y], fill="black", width=4)
             if c == 0 or regions[r][c] != regions[r][c-1]:
                 draw.line([x, y, x, y+cell_size], fill="black", width=4)
-            if r == 6:
+            if r == size - 1:
                 draw.line([x, y+cell_size, x+cell_size, y+cell_size], fill="black", width=4)
-            if c == 6:
+            if c == size - 1:
                 draw.line([x+cell_size, y, x+cell_size, y+cell_size], fill="black", width=4)
 
     buf = io.BytesIO()
@@ -195,11 +194,12 @@ class ActionButton(discord.ui.Button):
 
 class StarBattleGame(discord.ui.View):
     def __init__(self, ctx):
-        super().__init__(timeout=600.0) # 給玩家 10 分鐘的時間挑戰
+        super().__init__(timeout=600.0)
         self.ctx = ctx
+        self.size = GAME_SIZE
         self.author_id = ctx.author.id
-        self.regions, self.secret_stars = generate_puzzle()
-        self.board_state = [[' ']*7 for _ in range(7)]
+        self.regions, self.secret_stars = generate_puzzle(self.size)
+        self.board_state = [[' ']*self.size for _ in range(self.size)]
 
         self.selected_row = None
         self.selected_col = None
@@ -208,18 +208,19 @@ class StarBattleGame(discord.ui.View):
         self.stars_found = 0
         self.message = None
 
-        cols = "ABCDEFG"
-        # 由於 Discord UI 每排最多 5 顆按鈕，所以我們進行換行排版
-        for i in range(5):
-            self.add_item(CoordButton(cols[i], f'col_{i}', 0))
-        for i in range(5, 7):
-            self.add_item(CoordButton(cols[i], f'col_{i}', 1))
+        cols = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[:self.size]
 
-        for i in range(5):
-            self.add_item(CoordButton(str(i+1), f'row_{i}', 2))
-        for i in range(5, 7):
-            self.add_item(CoordButton(str(i+1), f'row_{i}', 3))
+        # 動態產生英文字母按鈕 (滿 5 個自動換行)
+        for i in range(self.size):
+            row_idx = 0 if i < 5 else 1
+            self.add_item(CoordButton(cols[i], f'col_{i}', row_idx))
 
+        # 動態產生數字按鈕 (滿 5 個自動換行)
+        for i in range(self.size):
+            row_idx = 2 if i < 5 else 3
+            self.add_item(CoordButton(str(i+1), f'row_{i}', row_idx))
+
+        # 動作按鈕固定放在最後一排
         self.add_item(ActionButton('模式: ⭐ (星星)', discord.ButtonStyle.primary, 'action_toggle', 4))
         self.add_item(ActionButton('✅ 確認送出', discord.ButtonStyle.success, 'action_submit', 4))
 
@@ -233,19 +234,19 @@ class StarBattleGame(discord.ui.View):
                     r = int(item.custom_id.split('_')[1])
                     item.style = discord.ButtonStyle.primary if self.selected_row == r else discord.ButtonStyle.secondary
 
-        img_buf = create_board_image(self.regions, self.board_state, self.selected_row, self.selected_col)
+        img_buf = create_board_image(self.regions, self.board_state, self.size, self.selected_row, self.selected_col)
         file = discord.File(img_buf, filename="board.png")
 
-        embed = discord.Embed(title="🌌 星際之戰 Star Battle (7x7)", color=0x9b59b6)
-        embed.description = f"**錯誤次數：** {self.mistakes} / 3\n**已找到星星：** {self.stars_found} / 7"
+        embed = discord.Embed(title=f"🌌 星際之戰 Star Battle ({self.size}x{self.size})", color=0x9b59b6)
+        embed.description = f"**錯誤次數：** {self.mistakes} / 3\n**已找到星星：** {self.stars_found} / {self.size}"
         embed.set_image(url="attachment://board.png")
 
         await interaction.response.edit_message(embed=embed, attachments=[file], view=self)
 
     def auto_fill_x(self, r, c):
         region = self.regions[r][c]
-        for i in range(7):
-            for j in range(7):
+        for i in range(self.size):
+            for j in range(self.size):
                 if (i, j) == (r, c) or self.board_state[i][j] == 'S': continue
                 if self.regions[i][j] == region or i == r or j == c or (abs(i-r) <= 1 and abs(j-c) <= 1):
                     self.board_state[i][j] = 'X'
@@ -265,7 +266,7 @@ class StarBattleGame(discord.ui.View):
                 self.stars_found += 1
                 self.auto_fill_x(r, c)
 
-                if self.stars_found == 7:
+                if self.stars_found == self.size:
                     return await self.game_over(interaction, win=True)
             else:
                 self.mistakes += 1
@@ -288,7 +289,7 @@ class StarBattleGame(discord.ui.View):
         for r, c in self.secret_stars:
             self.board_state[r][c] = 'S'
 
-        img_buf = create_board_image(self.regions, self.board_state)
+        img_buf = create_board_image(self.regions, self.board_state, self.size)
         file = discord.File(img_buf, filename="board_final.png")
 
         embed = discord.Embed(title="🌌 星際之戰 - 遊戲結束", color=0x2ecc71 if win else 0xe74c3c)
@@ -319,7 +320,7 @@ class StarBattleEntry(discord.ui.View):
         super().__init__(timeout=60.0)
         self.ctx = ctx
 
-    @discord.ui.button(label="花費 30 傑尼幣開始 (7x7)", style=discord.ButtonStyle.success)
+    @discord.ui.button(label=f"花費 30 傑尼幣開始 ({GAME_SIZE}x{GAME_SIZE})", style=discord.ButtonStyle.success)
     async def btn_start(self, interaction, button):
         if interaction.user.id != self.ctx.author.id:
             return await interaction.response.send_message("❌ 請自己輸入指令開始遊戲！", ephemeral=True)
@@ -330,45 +331,38 @@ class StarBattleEntry(discord.ui.View):
         if user_id not in data or data[user_id].get("傑尼幣", 0) < 30:
             return await interaction.response.send_message("⚠️ **餘額不足！** 需要 30 傑尼幣！", ephemeral=True)
 
-        # 🌟 防連點優化：瞬間鎖死按鈕並更新畫面 (取代原本的 defer)
         button.disabled = True
         button.label = "⏳ 生成地圖中，請稍候..."
         button.style = discord.ButtonStyle.secondary
         await interaction.response.edit_message(view=self)
 
-        # 扣款
         data[user_id]["傑尼幣"] -= 30
         save_json(DATA_FILE, data)
 
-        # 啟動遊戲 (此時玩家已經無法再點擊按鈕，可以安心讓機器人慢慢算)
         game_view = StarBattleGame(self.ctx)
-        img_buf = create_board_image(game_view.regions, game_view.board_state)
+        img_buf = create_board_image(game_view.regions, game_view.board_state, game_view.size)
         file = discord.File(img_buf, filename="board.png")
 
-        embed = discord.Embed(title="🌌 星際之戰 Star Battle (7x7)", color=0x9b59b6)
-        embed.description = "**錯誤次數：** 0 / 3\n**已找到星星：** 0 / 7"
+        embed = discord.Embed(title=f"🌌 星際之戰 Star Battle ({GAME_SIZE}x{GAME_SIZE})", color=0x9b59b6)
+        embed.description = f"**錯誤次數：** 0 / 3\n**已找到星星：** 0 / {GAME_SIZE}"
         embed.set_image(url="attachment://board.png")
 
-        # 運算完成後，再把畫面替換成正式的遊戲面板
         await interaction.message.edit(embed=embed, attachments=[file], view=game_view)
         game_view.message = interaction.message
         self.stop()
-        
+
 class StarBattle(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(aliases=["star", "星"])
-    async def 星之戰(self, ctx):
-        n = 7
+    @commands.hybrid_command(name="starbattle", aliases=["星之戰", "star", "星"], description="花費 30 傑尼幣遊玩星際之戰，動腦破解盤面獲得獎金！")
+    async def starbattle(self, ctx: commands.Context):
         rules = (
-            # f"**【 星際之戰 Star Battle {n}x{n} 】**\n\n"
-            f"1. 版面被粗線劃分為 {n} 個「區域」。\n"
+            f"1. 版面被粗線劃分為 {GAME_SIZE} 個「區域」。\n"
             "2. 每個 **橫列**、**直欄** 及 **區域** 中，都必須「剛好有 1 顆星星 ⭐」。\n"
             "3. **星星絕對不能相鄰**（包含斜對角線也不能碰到！）。\n\n"
             "🎯 **遊玩方式**：\n"
             "點擊下方按鈕選擇座標 (例如 A 1)，切換模式為星星 ⭐ 或 叉叉 ❌ 後按下確認。\n"
-            # "*(💡 貼心機制：如果你成功標記星星，系統會自動幫你把周圍跟同行同列打叉！)*\n"
             "你共有 3 次標記星星錯誤的機會，根據錯誤次數發放對應獎金！"
         )
         embed = discord.Embed(title="🌌 星之戰 (Star Battle)", description=rules, color=0x3498db)
