@@ -8,7 +8,7 @@ class GuideSelect(discord.ui.Select):
     def __init__(self):
         options = [
             discord.SelectOption(label="獵人執照與經濟", description="查看面板、簽到等指令", emoji="💰", value="eco"),
-            discord.SelectOption(label="獵人專屬小遊戲", description="1A2B、猜拳、礦業、骰寶等", emoji="🎮", value="game"),
+            discord.SelectOption(label="獵人專屬小遊戲", description="1A2B、猜拳、礦業、骰寶、2048、賽馬等", emoji="🎮", value="game"),
             discord.SelectOption(label="日常與工具", description="筆記本、關鍵字、打招呼", emoji="📝", value="util"),
         ]
         super().__init__(placeholder="請選擇你要查詢的指令類別...", min_values=1, max_values=1, options=options)
@@ -25,7 +25,9 @@ class GuideSelect(discord.ui.Select):
                       "`/rps` (猜拳) - 猜拳對決 (10幣)\n"
                       "`/mine` (礦場) - 地下礦業掛機面板\n"
                       "`/sicbo` (骰寶) - 地下競技場骰寶\n"
-                      "`/starbattle` (星之戰) - 邏輯解謎 (30幣)", 
+                      "`/starbattle` (星之戰) - 邏輯解謎 (30幣)\n"
+                      "`/2048` - 2048 挑戰 (50幣)\n"
+                      "`/race` (賽馬) - 瘋狂動物田徑賽大廳", 
                 inline=False
             )
         elif self.values[0] == "util":
@@ -47,6 +49,15 @@ class GuideView(discord.ui.View):
         super().__init__(timeout=180)
         self.add_item(GuideSelect())
 
+    # 🌟 超時處理：時間到自動把選單拔掉，保持版面乾淨
+    async def on_timeout(self):
+        self.clear_items()
+        if hasattr(self, 'message') and self.message:
+            try:
+                await self.message.edit(view=self)
+            except discord.errors.HTTPException:
+                pass
+
 # ==========================================
 # 🚀 導覽系統主程式
 # ==========================================
@@ -56,7 +67,6 @@ class GuideSystem(commands.Cog):
         # 依然移除 Discord 預設的陽春 help 指令，避免衝突與混淆
         self.bot.remove_command("help")
 
-    # 🌟 已經將 name 改為 guide，並將 "指令集" 加入 aliases
     @commands.hybrid_command(name="guide", aliases=["指令集", "指令", "指南", "幫助"], description="呼叫獵人協會指令大全")
     async def guide_cmd(self, ctx: commands.Context):
         embed = discord.Embed(
@@ -67,22 +77,8 @@ class GuideSystem(commands.Cog):
         if self.bot.user.display_avatar:
             embed.set_thumbnail(url=self.bot.user.display_avatar.url)
 
-        await ctx.reply(embed=embed, view=GuideView())
-
-    # 🌟 監聽器：當玩家只輸入單一驚嘆號時，自動呼叫導覽面板
-    @commands.Cog.listener()
-    async def on_message(self, message):
-        if message.author == self.bot.user:
-            return
-
-        # 如果訊息內容完全等於半形或全形驚嘆號
-        if message.content.strip() in ["!", "！"]:
-            embed = discord.Embed(
-                title="📚 獵人協會 - 指令導覽中心",
-                description="看來你需要一點引導！請透過下方的下拉式選單查詢所有的功能。",
-                color=0x3498db
-            )
-            await message.channel.send(embed=embed, view=GuideView())
+        view = GuideView()
+        view.message = await ctx.reply(embed=embed, view=view)
 
 async def setup(bot):
     await bot.add_cog(GuideSystem(bot))
